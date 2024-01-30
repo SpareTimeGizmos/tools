@@ -1,0 +1,319 @@
+  PALX is a PDP-8 cross assembler.  it was specifically intended for the Intersil IM6100 and Harris HD6120 chips, although it would work for a "real" PDP-8 just as well.  The PALX syntax differs somewhat from the DEC PAL PDP-8 assembler, and PALX is closer in look and feel to MACRO-10.  Whether that's good or bad depends on your point of view, but PALX certainly cannot assemble a traditional PDP-8 PAL source file, nor can a PALX source be assembled by PAL.
+
+SYMBOLS
+  PALX knows all the standard PDP-8 opcodes shared by the 6100 and 6120, such as AND, TAD, DCA, ISZ, JMP, JMS, as well as operate microinstructions such as SZL, SZA, SNA, CLA, HLT, OSR, etc.  Additionally, if you include the .HM6120 or .IM6100 pseudo ops in your source file, PALX will add the Harris or Intersil specific mnemonics to the symbol table.  For the 6120 this includes extensions like R3L, WSR, the stack operations (PPC1, RTN2, PAC2, LSP1, etc), and the control panel specific instructions (CPD, SPD, PRS, PGO, etc).  The Intersil IM6100 doesn't have any unique CPU instructions, however .IM6100 will add definitions for the IM6101 PIE (READ1, WRITE2, SKIP1, RCRA, WVR, etc), and the IM6103 PIO (SETPA, WPA, RPA, etc) as well as the IM6102 MEDIC (LIF, CLZE, LEAR, LWCR, etc).
+
+  User defined symbols may contain any number of the characters A-Z, 0-9, "%", "$", "_" and ".", but only the first 12 characters are significant.  Digits and or "." may NOT be the first character of a symbol name (anything starting with a digit is a number, and pseudo operations begin with a ".").  Labels are defined by starting a line with a name followed by a ":" (and not a "," as in PAL!).  Labels are associated with a full 15 bit address, although only the lower 12 bits are used when labels are referenced.  Symbols may also be defined with a "=" followed by any expression; these are only 12 bits.
+
+	FOO:	TAD	ABC	; "FOO" is the address of this instruction
+	FRED=1234		; "FRED" is defined as 1234
+
+NUMBERS
+  Anything starting with a digit is assumed to be a numeric value.  Numbers are assumed to be octal unless it is followed  by a radix character, "B", "D", or ".".  The latter two imply a decimal number, and "B" forces octal.
+
+	1234			; octal 1234
+	1234.			; decimal 1234
+	0789D			; explicitly decimal 789
+	0789			; decimal is implied by the "8" or "9"
+	0789B			; causes an error
+
+EXPRESSIONS
+  PALX has a pretty standard syntax for evaluating expressions.  Operands may be any one of
+
+	a number (see above)
+	any symbol (including MRIs and OPR instructions)
+	a single ASCII character enclosed in double quotes "x"
+	"*" or "." meaing the current location
+	a literal enclosed in "[...]"
+	any parenthesized subexpression "(...)"
+	a unary "+" or "-" followed by any of the above
+
+Multiple operands may be combined with operators to form an expression.  PALX recognizes these operators
+
+	"+" - addition
+	"-" - subtraction
+	"&" - bitwise AND
+	"|" - bitwise OR
+	"*" - multiplication
+	"/" - integer division (any remainder is discarded)
+	"%" - modulus
+
+Note that PALX does NOT HAVE ANY OPERATOR PRECEDENCE and expressions are evaluated strictly from left to right.  All operators have the same precedence so, for example, "1+2*3" would be 9, not 7.  You can use parenthesis to fix this if you need, so in this example "1+(2*3)" would give the expected result.
+
+OPCODES and OPERANDS
+  PALX uses the "@" to indicate indirect addressing in MRIs (not the "I" used by PAL), so for example
+
+	JMP	@RETURN
+
+PALX has no special character to force zero page addressing.  If the upper five bits of an MRI operand are zero then PALX automatically uses zero page addressing.  If the upper 5 operand bits match the current page then PALX automatically selects current page addressing, and if they're anything else then an "illegal off page reference" error occurs.
+
+  When written consecutively, operate microinstructions logically OR together so things like
+
+	CLA CLL CML
+
+work as expected.  PALX checks to make sure you aren't combining operate instructions from different groups (e.g. "SNA RTR") and will generate an error if you try.
+
+  The extended memory change field instructions, CIF, CDF, CXF, etc) expect an operand in the range 0..7.  The value is automatically left shifted by 3 bits before ORing it with the opcode to produce the correct result.  This is unlike PAL, which expects the operand to already be left shifted (e.g. CIF 70 vs CIF 7).
+
+  Likewise, IM6101 PIE and IM6103 PIO expect the actual device address as the operand (01..37 for the PIE and 0..3 for the PIO).  The PIE and PIO instructions will automatically shift and position the device address correctly before ORing iw with the opcode.
+
+  Finally, opcodes may be used in expressions and work as expected, so things like
+
+	IRET=JMP @0
+
+are perfectly legal.  Even more bizzare things like
+
+	FOO=(SNA CLA) + 1
+	FRED="A" * TAD 100
+
+are legal, although probably not useful.
+
+PSEUDO OPERATIONS
+  PALX contains a number of built in pseudo operators, the mnemonics for all of which begin with a "." (in proper MACRO-11 style this time).  These are
+
+.TITLE	Any String of Text
+  Sets an arbitrary title string printed at the top of the listing page, and also adds this string along with the current page number to the table of contents.  Note that .TITLE may appear any number of times in the source file; PALX does not have a .SBTTL as in MACRO-10 or -11.
+  
+.END
+  Indicates the end of the source file.
+  
+.NOWARN	xyz
+  Suppresses the warning or error messages associated with the letters x, y or z.  Any number of letters or just one, may be specified by the .NOWARN.
+  
+.OPDEF  MYMRI=1000
+  Adds an MRI style instruction to the symbol table.  When used in the source file, this symbol will be parsed as any other MRI would be, including the indirect and current page references.
+
+.ORG    addr
+  Sets the origin of the assembled code to "addr".  Note that only 12 bit addresses may be specified; use the .FIELD pseudo op to change the field.
+
+.PAGE   page
+  This is similar to .ORG, however .PAGE sets the origin to the first location on the specified PDP-8 memory page, 0..37.  For example
+
+	.PAGE	1	; sets the origin to 0200
+	
+.FIELD  field
+  Sets the field of the assembled code, 0..7.  This outputs a field setting frame to the object file and changes the current addresses shown in the listing, but it doesn't really affect the code generation otherwise since all PDP-8 MRIs only accept a 12 bit address.
+
+.BLOCK  n
+  Reserve n words of storage, but do not initialize them.  This is equivalent to something like ".ORG .+n".
+
+.DATA   a, b, c, ...
+  Generates one or more 12 bit words of data.
+
+.NLOAD	const
+  Generate an OPR instruction to load the AC with the specified constant.  This works only for certain, very specific values and if argument is not one of those an "A" error is generated.
+
+ CONSTANT    OPCODE                     MODELS
+ --------    -------------------------  -----------------------------------
+     0000    7200 CLA			all
+     0001    7201 CLA IAC		all
+     0002    7326 CLA CLL CML RTL	all
+     2000    7332 CLA CLL CML RTR	all
+     3777    7350 CLA CLL CMA RAR	all
+     4000    7330 CLA CLL CML RAR	all
+     5777    7352 CLA CLL CMA RTR	all
+     7775    7352 CLA CLL CMA RTL	all
+     7776    7346 CLA CLL CMA RAL	all
+     7777    7240 CLA CMA		all
+     0003    7325 CLA CLL CML IAC RAL	IM6100, HD6120, PDP-8/I and up
+     0004    7307 CLA CLL IAC RTL	IM6100, HD6120, PDP-8/I and up
+     0006    7327 CLA CLL CML IAC RTL	IM6100, HD6120, PDP-8/I and up
+     6000    7333 CLA CLL CML IAC RTR	IM6100, HD6120, PDP-8/I and up
+     0100    7203 CLA IAC BSW		IM6100, HD6120, PDP-8/E and up
+     0010    7315 CLA CLL IAC R3L	HD6120 only
+    other    7000 NOP			GENERATES AN "A" ERROR !!
+
+ NOTE:
+   .NLOAD -1 is the same as .NLOAD 7777
+   .NLOAD -2 is the same as .NLOAD 7776
+   .NLOAD -3 is the same as .NLOAD 7775
+  
+.ASCIZ	"string"
+  Generates an UNPACKED string of ASCII characters, one per 12 bit word, and terminated with a null (zero) byte.  As is the tradition with MACRO-10/11, any printing character may be used as the quotation
+
+	.ASCIZ	"This is a string"
+	.ASCIZ	/This is also a string/
+
+In addition, the string may contain the following escape sequences
+
+	\r - replaced by a carriage return (015) character
+	\n - replaced by a line feed (012) character
+	\t - replaced by a horizontal tab (010) character
+	\d - replaced by the current date
+	\h - replaced by the current time
+	\\ - replaced by a single backslash ("\") character
+
+.TEXT   "string"
+  This is identical to .ASCIZ, however this time the string is PACKED into 12 bit words using the standard OS/8 "3 for 2" packing scheme.  The string is still terminated with a null (zero) byte and the same "\x" escape sequences are recognized here.
+
+.SIXBIT "string"
+  Similar to .ASCIZ or .TEXT, however this time the characters are packed two per word using the OS/8 SIXBIT scheme (which, BTW, is NOT the same as DEC-10 SIXBIT!).  No terminating null is forced in this case, although if the string has an odd number of characters then the last six bits will be filled with zeros.
+
+.IM6100 
+  Sets the CPU type to 6100 (which is relevant for the stack pseudo ops) and adds the 6100 PIE, PIO and MEDIC opcodes to the symbol table.
+
+.HM6120 
+  Sets the CPU type to 6120 (again, relevant for the stacn pseudo ops) and adds the 6120 specific opcodes to the symbol table.
+
+.VECTOR start
+  Generates a reset vector for the IM6100 and HM6120 microprocessors.  On reset, these chips set the PC to 7777 and execute whatever instruction is there;the convention being to put a JMP to actual program start in that location.  If the start address is also on the current page, .VECTOR generates a simple JMP to this address in the last location of the page.  If the start address is on another page, .VECTOR generates two words of code - a JMP indirect in the last location of the page, and the actual start address in the next to last location.
+
+  Normally this pseudo-op would be used in code page 7600, however this implementation does not require that and .VECTOR may be used on any page.  It works the same way regardless of the page; the JMP intstruction goes in the last word on the page, and the indrect vector (if any) in the second to last location.  This is necessary for systems like the JR2K, where some fancy EPROM mapping means that the code which executes on page 7600 isn't actually on page 7600 of the EPROM image.
+
+.STACK  push, pop, pushj, popj
+  This lets the programmer set the opcodes associated with the four stack pseudo ops, .PUSH, .POP, .PUSHJ and .POPJ.  Because the 6120 has not one but two hardware stacks, this pseudo op can be used to select the stack in use.  Although the IM6100 (and a real PDP-8 for that matter) don't have a hardware stack they can emulate one with software and this same pseudo op can be used to set the instructions (almost always JMS or JMPs) associated with the software simulation. This makes it easy to port the same source code to either CPU.
+
+.PUSH   
+  Generate code to push the AC on the stack, and clear the AC.
+
+.POP    
+  Generate code to pop the AC from the stack.
+
+.PUSHJ  addr
+  Generate code to call the subroutine at addr.
+
+.POPJ   
+  Generate code to return from a subroutine.
+
+MACROS
+  PALX has a rudimentary macro facility.  Macros may be defined with the .DEFINE pesudo op, and macros are expanded by referencing their name.  Macros may have parameters, which are positional and are referenced in the macro body by a "$" followed by the formal argument name.  Argument expansion happens anywhere inside the macro body - strings, comments - anywhere!  A literal dollar sign character may be included in the macro expansion by doubling it (e.g. "$$").
+
+  For example,
+
+	.DEFINE     ADD(SRC1,SRC2,DST)
+<
+	TAD	$SRC1
+	TAD	$SRC2
+	DCA	$DST
+>
+	...
+	ADD       A, B, C
+
+ Macro definitions and macro expansions may be nested, and macros may be redefined.  Currently there is a limit of 10 parameters per macro invocation, but that's a PALX compliation constant.  Parenthesis around both the actual and formal argument lists are optional.  For example
+
+	.DEFINE	FOO(A,B,C) <...>
+and
+	.DEFINE FOO A, B, C <...>
+
+both give the same results.  Formal arguments may be any legal symbol name, EXCEPT those beginning with "$".  Formal arguments beginning with "$" are generated labels (see below) and are treated specially.  The text block comprising the macro body may be any string of characters enclosed in matching angle brackets, "< ... >".  Text blocks may extend across multiple lines or it may be only part of a single source line.  For example
+
+	.DEFINE	FOO
+<
+	ISZ	X
+>
+
+and
+
+	.DEFINE FOO <ISZ X>
+
+both give the same results.
+
+ Actual agument lists for macro invocations are mostly free form and can consist of any string of characters.  There are, however, a few rules - macro arguments cannot span multiple lines, and macro arguments cannot contain a comma (which separates multiple arguments) EXCEPT under certain conditions.  Commas ARE allowed in an argument if they're part of a string enclosed by matching pairs of Parenthesis or double quotes.  For example,
+
+	MAC1			; has no arguments
+	MAC1()			; also has no arguments
+	MAC1	A, B, C		; has three arguments, "A", "B" and "C"
+	MAC1(A, B, C)		; also has three arguments, "A", "B" and "C"
+	MAC1	A, (B, C)	; has two arguments, "A" and "(B, C)"
+	MAC1	A B C		; has one argument, "A B C"
+	MAC1	A "B,C"		; has one argument, "A ""B, C""
+	MAC1	A, "B,C"	; has two arguments, "A" and ""B, C""
+
+ If a formal argument name begins with a "$" AND the corresponding actual argument is empty, then PALX will generate a unique name of the form "$nnnnn" (where "nnnnn" are sequentially generated numbers) and substitute it for the actual argument.  These are intended to be used to generate unique label names for use inside macros.  For example
+
+	.DEFINE	CCOM(X,$L) <	; test X and complement if non-zero
+	TAD	$X		;  load X
+	SNA			;  is it zero?
+	 JMP	 $L		;  no - jump to $L
+	CMA			;  yes - complement it
+	DCA	$X		;  and save the new value
+$L: >
+
+This macro invocation
+
+	CCOM	VAL
+
+would generate
+
+	TAD	VAL		;  load X
+	SNA			;  is it zero?
+	 JMP	 $00001		;  no - jump to $00001
+	CMA			;  yes - complement it
+	DCA	VAL		;  and save the new value
+$00001:
+
+However if an actual argument for L is explicitly specified, for example
+
+	CCOM	VAL, LBL1
+
+then that value, LBL1, will be used for $L rather than any generated string.  Also note that the "$" is not actually part of the formal argument name when it's referenced in the macro body, so it's "JMP $L", not "JMP $$L"...
+
+CONDITIONALS
+  PALX supports eight different conditional assembly pseudo ops.
+
+	.IFDEF name <code>	- assembles <code> if "name" is defined
+	.IFNDEF name <code>	- assembles <code> if "name" is not defined
+	.IFEQ expr <code>	- assembles <code> if the value of "expr" .EQ. zero
+	.IFNE expr <code>	- assembles <code> if the value of "expr" .NE. zero
+	.IFGT expr <code>	- assembles <code> if the value of "expr" .GT. zero
+	.IFGE expr <code>	- assembles <code> if the value of "expr" .GE. zero
+	.IFLT expr <code>	- assembles <code> if the value of "expr" .LT. zero
+	.IFLE expr <code>	- assembles <code> if the value of "expr" .LE. zero
+
+LISTING OPTIONS
+  The .LIST and .NOLIST pseudo operations can be used to control what appears in the listing.  Each is followed by a comma separated list of one or more options, and .LIST enables the selected listing and .NOLIST disables it.  The defined listing options are
+
+	MET     - macro expansion text (binary is always listed!)
+	TXB	- binary for .TEXT/.ASCIZ/.SIXBIT and .DATA
+	TOC     - table of contents
+	MAP     - memory bitmap
+	SYM     - symbol table including cross reference
+	PAG	- paginate the listing
+	ALL	- enable all listing options (.LIST only!)
+
+For example
+
+	.LIST	TOC, MAP, SYM	; enable table of contents, memory map and symbol table
+	.NOLIST	MET		; disable listing macro expansion text
+	.LIST	ALL		; list everything!
+
+  The .ERROR pseudo operation simply flags an error and does nothing more.  The rest of the source line, if any, is ignored.  The error will cause the source line to be listed on stderr and, when used with the .IFxxx conditional assembly pseuod ops, this can be used to report problems to the user.
+
+For example
+
+	STKLEN=0200-.
+	.IFLT	STKLEN-25. <
+	.ERROR	NOT ENOUGH ROOM FOR STACK!
+	>
+
+  The .EJECT pseudo operation starts a new page in the listing (don't confuse this with .PAGE - they're very different!).  .EJECT takes no operands and the new page occurs AFTER the .EJECT line is listed (i.e. .EJECT is the last line on the previous page, not the first line on the next page).
+
+ERRORS
+  For any source line with an error, PALX will print one or more error code letters in the listing after the line number.  The currently defined error codes are
+
+	A - number out of range
+	C - too many macro arguments or macro too long
+	D - location loaded twice (caused by overlapping .ORGs)
+	E - .ERROR pseudo operation
+	F - off field reference warning
+	L - unknown .LIST/.NOLIST option
+	M - multiply defined
+	N - illegal format for number
+	O - illegal micro-coded combination
+	P - page full error
+	S - a symbol has been improperly defined
+	U - undefined symbol
+	X - syntax error
+	W - illegal off page reference
+	Z - badly formed or unknown pseudo operation
+
+Lines with errors are printed to stderr as well as the listing file, and at the end of the assembly a summary of the total number of errors will be printed.
+
+USAGE
+   palx [-p nn] [-w nnn] [-l listfile] [-b binaryfile] sourcefile
+         -l file -> specify listing file name
+         -b file -> specify binary file name
+         -p nn   -> set listing page length to nn lines
+         -w nnn  -> set listing page width to nnn columns
+         -8      -> use OS/8 style coding for .SIXBIT/.SIXBIZ
+         -a      -> use ASR33 "always mark" for ASCII characters

@@ -12,6 +12,8 @@
 ## SBC6120 Project
 * palx - PDP-8/IM6100/HD6120 cross assembler.
 
+* pdp2hex - split PDP-8 BIN file into two EPROM images.
+
 * mkid01 - read/write ID01 disk images.
 
 * mkdltxt - create ID01/VM01 download files.

@@ -1,0 +1,257 @@
+"TASM 1802/4/5/6 Cross-Assembler    "
+
+;++
+; This is the instruction set definition table 
+;   for the 1802/4/5/6 version of TASM.
+;
+;      Class bits assigned as follows:
+;        Bit-0 = 1802         (base instruction set)
+;        Bit-1 = 1804/5/6     (extended instruction set)
+;  See TASM manual for info on table structure.
+;
+;  CAUTION - TASM will allow assembly of the following illegal
+;            assembler constructs:
+;
+;            OUT 0 --------- assembles as 60h (IRX instruction)
+;            INP 0 --------- assembles as 68h (illegal OpCode)
+;            LDN 0, LDN R0 - assembles as 00h (IDL instruction)
+;
+; sbrune 2004/08/04
+;   Added instructions to replace some macro definitions:
+;       Old Macro                  New Instruction        Assembles As
+;       CALL(1234h)         =>     CALL 1234h      =>     D4 12 34
+;       RETN                =>     RETN            =>     D5
+;       LDI  L0(1234h)      =>     LDI  LO,1234h   =>     F8 34 
+;       LDI  HI(1234h)      =>     LDI  HI,1234h   =>     F8 12
+;
+; sbrune 2004/09/16
+;   Changed table so that labels can start with the R character.
+;   Details:
+;     Added register definitions
+;     Replaced RA - RF, R* with !
+;
+; Robert Armstrong <bob@jfcl.com> 30-APR-2017
+;   Add an extended instruction set with the 1804/5/6 opcodes
+;   Remove all ot Steve Brune's "special" instructions (e.g. CALL, RETN, etc)
+;   Note that TASM 3.3 is now required for the RSWAP and RNIBBLE rules!
+;--
+.MSFIRST
+
+;REGISTER DEFINITIONS
+;
+;       REG   OP    BYTES   
+;--------------------------
+.REGSET R0    00   1
+.REGSET R1    01   1
+.REGSET R2    02   1
+.REGSET R3    03   1
+.REGSET R4    04   1
+.REGSET R5    05   1
+.REGSET R6    06   1
+.REGSET R7    07   1
+.REGSET R8    08   1
+.REGSET R9    09   1
+.REGSET RA    0A   1
+.REGSET RB    0B   1
+.REGSET RC    0C   1
+.REGSET RD    0D   1
+.REGSET RE    0E   1
+.REGSET RF    0F   1
+
+
+;MEMORY REFERENCE INSTRUCTIONS
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+LDI     *       F8  2       NOP         1
+RLDI    !,*   68C0  4       SWAP        2
+RLDI    *,*   68C0  4       RSWAP       2
+LDN     !       00  1       NOP         1
+LDN     *       00  1       RNIBBLE     1
+LDA     !       40  1       NOP         1
+LDA     *       40  1       RNIBBLE     1
+LDX     ""      F0  1       NOP         1
+LDXA    ""      72  1       NOP         1
+RLXA    !     6860  2       NOP         2
+RLXA    *     6860  2       RNIBBLE     2
+STR     !       50  1       NOP         1
+STR     *       50  1       RNIBBLE     1
+STXD    ""      73  1       NOP         1
+RSXD    !     68A0  2       NOP         2
+RSXD    *     68A0  2       RNIBBLE     2
+
+
+;REGISTER OPERATIONS
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+INC     !       10  1       NOP         1
+INC     *       10  1       RNIBBLE     1
+DEC     !       20  1       NOP         1
+DEC     *       20  1       RNIBBLE     1
+IRX     ""      60  1       NOP         1
+GLO     !       80  1       NOP         1
+GLO     *       80  1       RNIBBLE     1
+PLO     !       A0  1       NOP         1
+PLO     *       A0  1       RNIBBLE     1
+GHI     !       90  1       NOP         1
+GHI     *       90  1       RNIBBLE     1
+PHI     !       B0  1       NOP         1
+PHI     *       B0  1       RNIBBLE     1
+DBNZ    !,*   6820  4       SWAP        2
+DBNZ    *,*   6820  4       RSWAP       2
+RNX     !     68B0  2       NOP         2
+RNX     *     68B0  2       RNIBBLE     2
+
+
+;LOGIC OPERATIONS
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+OR      ""      F1  1       NOP         1
+ORI     *       F9  2       NOP         1
+XOR     ""      F3  1       NOP         1
+XRI     *       FB  2       NOP         1
+AND     ""      F2  1       NOP         1
+ANI     *       FA  2       NOP         1
+SHR     ""      F6  1       NOP         1
+SHL     ""      FE  1       NOP         1
+RSHL    ""      7E  1       NOP         1
+RSHR    ""      76  1       NOP         1
+SHLC    ""      7E  1       NOP         1
+SHRC    ""      76  1       NOP         1
+
+
+;ARITHMETIC OPERATIONS
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+ADD     ""      F4  1       NOP         1
+DADD    ""    68F4  2       NOP         2
+ADI     *       FC  2       NOP         1
+DADI    *     68FC  3       NOP         2
+ADC     ""      74  1       NOP         1
+DADC    ""    6874  2       NOP         2
+ADCI    *       7C  2       NOP         1
+DACI    *     687C  3       NOP         2
+SD      ""      F5  1       NOP         1
+SDI     *       FD  2       NOP         1
+SDB     ""      75  1       NOP         1
+SDBI    *       7D  2       NOP         1
+SM      ""      F7  1       NOP         1
+DSM     ""    68F7  2       NOP         2
+SMI     *       FF  2       NOP         1
+DSMI    *     68FF  3       NOP         2
+SMB     ""      77  1       NOP         1
+DSMB    ""    6877  2       NOP         2
+SMBI    *       7F  2       NOP         1
+DSBI    *     687F  3       NOP         2
+
+
+;SHORT BRANCH INSTRUCTIONS
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+BR      *       30  2       JTHISPAGE   1
+NBR     ""      38  1       NOP         1
+BZ      *       32  2       JTHISPAGE   1
+BNZ     *       3A  2       JTHISPAGE   1
+BDF     *       33  2       JTHISPAGE   1
+BPZ     *       33  2       JTHISPAGE   1
+BGE     *       33  2       JTHISPAGE   1
+BNF     *       3B  2       JTHISPAGE   1
+BM      *       3B  2       JTHISPAGE   1
+BL      *       3B  2       JTHISPAGE   1
+BQ      *       31  2       JTHISPAGE   1
+BNQ     *       39  2       JTHISPAGE   1
+B1      *       34  2       JTHISPAGE   1
+BN1     *       3C  2       JTHISPAGE   1
+B2      *       35  2       JTHISPAGE   1
+BN2     *       3D  2       JTHISPAGE   1
+B3      *       36  2       JTHISPAGE   1
+BN3     *       3E  2       JTHISPAGE   1
+B4      *       37  2       JTHISPAGE   1
+BN4     *       3F  2       JTHISPAGE   1
+BCI	*     683E  3       JTHISPAGE   2
+BXI     *     683F  3       JTHISPAGE   2
+
+
+;LONG BRANCH INSTRUCTIONS
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+LBR     *       C0  3       SWAP        1
+NLBR    ""      C8  1       NOP         1
+LBZ     *       C2  3       SWAP        1
+LBNZ    *       CA  3       SWAP        1
+LBDF    *       C3  3       SWAP        1
+LBNF    *       CB  3       SWAP        1
+LBQ     *       C1  3       SWAP        1
+LBNQ    *       C9  3       SWAP        1
+
+
+;SKIP INSTRUCTIONS
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+SKP     ""      38  1       NOP         1
+LSKP    ""      C8  1       NOP         1
+LSZ     ""      CE  1       NOP         1
+LSNZ    ""      C6  1       NOP         1
+LSDF    ""      CF  1       NOP         1
+LSNF    ""      C7  1       NOP         1
+LSQ     ""      CD  1       NOP         1
+LSNQ    ""      C5  1       NOP         1
+LSIE    ""      CC  1       NOP         1
+
+
+;CONTROL INSTRUCTIONS
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+IDL     ""      00  1       NOP         1
+NOP     ""      C4  1       NOP         1
+SEP     !       D0  1       NOP         1
+SEP     *       D0  1       RNIBBLE     1
+SEX     !       E0  1       NOP         1
+SEX     *       E0  1       RNIBBLE     1
+SEQ     ""      7B  1       NOP         1
+REQ     ""      7A  1       NOP         1
+MARK    ""      79  1       NOP         1
+
+
+;TIMER/COUNTER INSTRUCTIONS
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+LDC     ""   6806   2      NOP         2
+GEC     ""   6808   2      NOP         2
+STPC    ""   6800   2      NOP         2
+DTC     ""   6801   2      NOP         2
+STM     ""   6807   2      NOP         2
+SCM1    ""   6805   2      NOP         2
+SCM2    ""   6803   2      NOP         2
+SPM1    ""   6804   2      NOP         2
+SPM2    ""   6802   2      NOP         2
+ETQ     ""   6809   2      NOP         2
+
+
+;INTERRUPT CONTROL
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+XIE     ""   680A  2       NOP         2
+XID     ""   680B  2       NOP         2
+CIE     ""   680C  2       NOP         2
+CID     ""   680D  2       NOP         2
+RET     ""     70  1       NOP         1
+DIS     ""     71  1       NOP         1
+SAV     ""     78  1       NOP         1
+DSAV    ""   6876  2       NOP         2
+
+
+;INPUT/OUTPUT
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+OUT     *      60  1       TDMA        1       0       07
+INP     *      68  1       TDMA        1       0       07
+
+
+;SUBROUTINE CALL AND RETURN
+;INSTR ARGS    OP  BYTES   RULE        CLASS   SHIFT    OR      
+;--------------------------------------------------------------
+SCAL    !,*   6880  4       SWAP        2
+SCAL    *,*   6880  4       RSWAP       2
+SRET    !     6890  2       NOP         2
+SRET    *     6890  2       RNIBBLE     2
+

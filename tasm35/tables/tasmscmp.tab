@@ -1,0 +1,154 @@
+"TASM SC/MP Cross-Assembler"
+
+;++
+;   This is the TASM instruction set table for the National Semiconductor SC/MP
+; microprocessors.  The SC/MP came in three distinct flavors
+;
+;	INS8050 (aka SC/MP)	- the original, PMOS, version
+;	INS8060 (aka SC/MP-II)	- improved NMOS version
+;	INS8070 (aka SC/MP-III)	- even more improved version
+;
+;  The INS8050 SC/MP and INS8060 SC/MP-II have exactly the same instruction
+; set, however the INS8060 requires only a single +5V supply and runs at
+; twice the clock frequency.  The INS807x family has an expanded instruction
+; set and several other improvements. FWIW, the INS8070 is the ROMless version;
+; the INS8072 has an onchip 4K mask programmed ROM, and the INS8073 is an 8072
+; with NIBL BASIC pre-programmed into the onchip ROM.
+;
+;  Class bits assigned as follows:
+;
+;        Bit-0 = INS8050/8060 (base SC/MP and SC/MP-II instruction set)
+;        Bit-1 = INS807x      (SC/MP-III extended instruction set)
+;
+;  Differences from the National Semiconductor assembler syntax -
+;
+;    * Index registers must be enclosed in square brackets ("[...]") rather
+;      than parenthesis.  This is a limtation in TASM.
+;
+; REVISION HISTORY:
+; 12-JUN-23 RLA	New file.
+;--
+
+
+;REGISTER DEFINITIONS
+;
+;       REG OP BYTES   
+;--------------------------
+.REGSET P0  00   1
+.REGSET P1  01   1
+.REGSET P2  02   1
+.REGSET P3  03   1
+
+
+;EXTENSION REGISTER INSTRUCTIONS (IMPLIED OPERAND!)
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+LDE	""	40    1	    NOP      1
+ANE	""	50    1	    NOP      1
+ORE	""	58    1	    NOP      1
+XRE	""	60    1	    NOP      1
+DAE	""	68    1	    NOP      1
+ADE	""	70    1	    NOP      1
+CAE	""	78    1	    NOP      1
+
+;SHIFT AND ROTATE INSTRUCTIONS (IMPLIED OPERAND!)
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+SIO	""	19    1	    NOP      1
+SR	""	1c    1	    NOP      1
+SRL	""	1d    1	    NOP      1
+RR	""	1e    1	    NOP      1
+RRL	""	1f    1	    NOP      1
+
+;MISCELLANEOUS INSTRUCTIONS (IMPLIED OPERAND!)
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+HALT	""	00    1	    NOP      1
+XAE	""	01    1	    NOP      1
+CCL	""	02    1	    NOP      1
+SCL	""	03    1	    NOP      1
+DINT	""	04    1	    NOP      1
+IEN	""	05    1	    NOP      1
+CSA	""	06    1	    NOP      1
+CAS	""	07    1	    NOP      1
+NOP	""	08    1	    NOP      1
+
+;IMMEDIATE INSTRUCTIONS (8 BIT OPERAND!)
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+DLY	*	8f    2	    NOP      1
+LDI	*	c4    2	    NOP      1
+ANI	*	d4    2	    NOP      1
+ORI	*	dc    2	    NOP      1
+XRI	*	e4    2	    NOP      1
+DAI	*	ec    2	    NOP      1
+ADI	*	f4    2	    NOP      1
+CAI	*	fc    2	    NOP      1
+
+;POINTER REGISTER INSTRUCTIONS (TWO BIT REGISTER NUMBER OPERAND)
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+XPAL	!	30    1     NOP       1
+XPAH	!	34    1     NOP       1
+XPPC	!	3c    1     NOP       1
+
+
+;MEMORY REFERENCE INSTRUCTIONS
+;  Each one of these comes in three formats -
+;    address	- PC (P0) relative addressing
+;    disp(P)	- indexed by register P
+;    @disp(P)	- auto-indexed by register P
+;
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+LD     @*[!]	c4    2     NOP      1
+LD      *[!]	c0    2     NOP      1
+LD	*	c0    2     R1       1
+ST     @*[!]	cc    2     NOP      1
+ST      *[!]	c8    2     NOP      1
+ST      *	c8    2     R1       1
+AND    @*[!]	d4    2     NOP      1
+AND     *[!]	d0    2     NOP      1
+AND     *	d0    2     R1       1
+OR     @*[!]	dc    2     NOP      1
+OR      *[!]	d8    2     NOP      1
+OR      *	d8    2     R1       1
+XOR    @*[!]	e4    2     NOP      1
+XOR     *[!]	e0    2     NOP      1
+XOR     *	e0    2     R1       1
+DAD    @*[!]	ec    2     NOP      1
+DAD     *[!]	e8    2     NOP      1
+DAD     *	e8    2     R1       1
+ADD    @*[!]	f4    2     NOP      1
+ADD     *[!]	f0    2     NOP      1
+ADD     *	f0    2     R1       1
+CAD    @*[!]	fc    2     NOP      1
+CAD     *[!]	f8    2     NOP      1
+CAD     *	f8    2     R1       1 
+
+;TRANSFER INSTRUCTIONS
+;  Each one of these comes in two formats -
+;    address	- PC (P0) relative addressing
+;    disp(P)	- indexed by register P
+; Note that there is no indirect addressing in this instance.
+;
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+JMP    *[!]	90    2     NOP      1
+JMP    *	90    2     R1       1
+JP     *[!]	94    2     NOP      1
+JP     *	94    2     R1       1
+JZ     *[!]	98    2     NOP      1
+JZ     *	98    2     R1       1
+JNZ    *[!]	9c    2     NOP      1
+JNZ    *	9c    2     R1       1
+
+;MEMORY INCREMENT/DECREMENT INSTRUCTIONS
+; These follow the same format as the transfer instructions!
+;
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+ILD    *[!]	a8    2     NOP      1
+ILD    *	a8    2     R1       1
+DLD    *[!]	b8    2     NOP      1
+DLD    *	b8    2     R1       1

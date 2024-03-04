@@ -1,0 +1,337 @@
+"TASM S2650 Cross-Assembler"
+
+;++
+;  This is the TASM instruction set table for the Signetics 2650 microprocessor.
+;
+;  Class bits assigned as follows:
+;
+;        Bit-0 = 2650/2650A   (base instruction set)
+;        Bit-1 = 2650B        (added the LDPL and STPL instructions)
+;
+;  There are lots of differences from the Signetics assembler syntax here.
+; Signetics prefers a very ancient IBM style notation; that's not suprising
+; because the 2650 is often compared to a simplified IBM 1130.  Some changes
+; are necessary because of the way TASM parses statements, and some are just
+; a matter of personal preference!  
+;
+;    * Signetics uses the basic syntax of "OPCODE,REG OPERAND", for example
+; "LODI,R1, 21".  We move the comma between the register and operand, so we
+; want to see "LODI R1,21".
+;
+;    * Indirect addresses are denoted by a "@" rather than the "*" that
+; Signetics uses, so say "LODA R1,@XYZ" rather than "LODA,R1 *XYZ".
+;
+;    * Index registers are enclosed in square brackets, not comma delimited
+; as Signetics does.  For example, "LODA R1,TABLE[R2]" not "LODA,R1 TABLE,R2".
+;
+;    * And auto-increment or decrement is indicated by a "+" or "-" after the
+; closing bracket, viz. "LODA R1,BUFF[R2]+" rather than "LODA,R1 BUFF,R2,+".
+; Note that we'd like to have the "+" or "-" inside the bracket, but that
+; causes problems for TASM (it's hard for it to tell the difference between
+; that and an arithmetic expression).
+;
+; REVISION HISTORY:
+; 12-JUN-23 RLA	New file.
+;--
+.MSFIRST
+
+
+;REGISTER DEFINITIONS
+;
+;       REG OP BYTES   
+;--------------------------
+.REGSET R0   0   1
+.REGSET R1   1   1
+.REGSET R2   2   1
+.REGSET R3   3   1
+;  These are the condition codes for the branch instructions, but for our
+; purposes they work just like register names ...
+.REGSET EQ   0   1
+.REGSET GT   1   1
+.REGSET LT   2   1
+.REGSET UN   3   1        
+
+
+;NO OPERAND INSTRUCTIONS ...
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+HALT	""	00    1	    NOP      1
+HALT	""	40    1	    NOP      1
+LPSL	""	93    1	    NOP      1
+LPSU	""	92    1	    NOP      1
+NOP	""	C0    1	    NOP      1
+SPSL	""	13    1	    NOP      1
+SPSU	""	12    1	    NOP      1
+
+
+;REGISTER ONLY INSTRUCTIONS ...
+;   These instructions all take a single register name as the operand ...
+; Note that some of these isntructions are special cases where the operand
+; is R0 - for example, "ANDZ R0" is HALT, and "STRZ R0" is NOP.  We don't
+; check for those, and will happily generate the "wrong" code.
+;
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+ADDZ	!	80    1	    NOP      1
+ANDZ	!	40    1	    NOP      1
+COMZ	!	E0    1	    NOP      1
+EORZ	!	20    1	    NOP      1
+IORZ	!	60    1	    NOP      1
+LODZ	!	00    1	    NOP      1
+STRZ	!	C0    1	    NOP      1
+SUBZ	!	A0    1	    NOP      1
+DAR	!	94    1	    NOP      1
+RRL	!	D0    1	    NOP      1
+RRR	!	50    1	    NOP      1
+REDC	!	30    1	    NOP      1
+REDD	!	70    1	    NOP      1
+WRTC	!	B0    1	    NOP      1
+WRTD	!	F0    1	    NOP      1
+
+
+;IMMEDIATE NO REGISTER INSTRUCTIONS ...
+;   These instructions all take a single 8 bit byte as the sole argument ...
+;
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+CPSL	*	75    2     NOP      1
+CPSU	*	74    2     NOP      1
+PPSL	*	77    2     NOP      1
+PPSU	*	76    2     NOP      1
+TPSL	*	B5    2     NOP      1
+TPSU	*	B4    2     NOP      1
+
+
+;REGISTER IMMEDIATE INSTRUCTIONS ...
+;   These all take a register name and an 8 bit immediate argument ...
+;
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+ADDI	!,*	84    2     NOP      1
+ANDI	!,*	44    2     NOP      1
+COMI	!,*	E4    2     NOP      1
+EORI	!,*	24    2     NOP      1
+IORI	!,*	64    2     NOP      1
+LODI	!,*	04    2     NOP      1
+SUBI	!,*	A4    2     NOP      1
+TMI	!,*	F4    2     NOP      1
+REDE	!,*	54    2     NOP      1
+WRTE	!,*	D4    2     NOP      1
+
+
+;REGISTER RELATIVE INSTRUCTIONS ...
+;   These all take a register name and an 7 bit displacement (-64 to +63 bytes
+; offset from the PC).  Note that since the indirect bit actually lives in the
+; second byte of the opcode, we have to specify all of these as 16 bit opcodes.
+; The code for the SR rule will fix things up appropriately...
+;
+;INSTR ARGS      OP  BYTES   RULE   CLASS
+;-------------------------------------------
+ADDR	!,@*	8880   2      SR      1
+ADDR	!,*	8800   2      SR      1
+ANDR	!,@*	4880   2      SR      1
+ANDR	!,*	4800   2      SR      1
+COMR	!,@*	E880   2      SR      1
+COMR	!,*	E800   2      SR      1
+EORR	!,@*	2880   2      SR      1
+EORR	!,*	2800   2      SR      1
+IORR	!,@*	6880   2      SR      1
+IORR	!,*	6800   2      SR      1
+LODR	!,@*	0880   2      SR      1
+LODR	!,*	0800   2      SR      1
+STRR	!,@*	C880   2      SR      1
+STRR	!,*	C800   2      SR      1
+SUBR	!,@*	A880   2      SR      1
+SUBR	!,*	A800   2      SR      1
+
+
+;BRANCH RELATIVE INSTRUCTIONS ...
+;   Syntactically these are all identical to the register relative instructions,
+; above.  In this case we want a condition code as the first argument instead
+; of a register, but we treat the condition codes (UN, EQ, GT, LT) as if they
+; were register names so it makes no difference here.  This means you can say
+; something like "BCTR R1,..." and it will assemble w/o errors, but that's
+; life.
+;
+;   Another funny thing to note is that "BCFR 3, ..." is actually the ZBRR
+; instruction, and "BSFR 3, ..." is actually ZBSR.  These require absolute
+; addressing and are not PC relative.  Note that we don't actually prevent
+; someone from writing "BCFR 3,..." but if you do the wrong code will be
+; generated!
+;
+;INSTR ARGS      OP  BYTES   RULE   CLASS
+;-------------------------------------------
+BCFR	!,@*	9880   2      SR      1
+BCFR	!,*	9800   2      SR      1
+BCTR	!,@*	1880   2      SR      1
+BCTR	!,*	1800   2      SR      1
+BRNR	!,@*	5880   2      SR      1
+BRNR	!,*	5800   2      SR      1
+BDRR	!,@*	F880   2      SR      1
+BDRR	!,*	F800   2      SR      1
+BIRR	!,@*	D880   2      SR      1
+BIRR	!,*	D800   2      SR      1
+BSFR	!,@*	B880   2      SR      1
+BSFR	!,*	B800   2      SR      1
+BSNR	!,@*	7880   2      SR      1
+BSNR	!,*	7800   2      SR      1
+BSTR	!,@*	3880   2      SR      1
+BSTR	!,*	3800   2      SR      1
+ZBRR	@*	9B80   2      ZR      1
+ZBRR	*	9B00   2      ZR      1
+ZBSR	@*	BB80   2      ZR      1
+ZBSR	*	BB00   2      ZR      1
+
+
+;BRANCH ABSOLUTE INSTRUCTIONS ...
+;   These are unique in that they take a full 15 bit absolute address as the
+; argument (they're the only instructions that do so).  The 2650 is a big
+; endian machine, so high order byte first, and there's an indirect flag
+; in the MSB of the first argument byte.
+;
+;   Like the relative branches, there are some funny special cases here.
+; "BCFA 3,..." is really BXA, and "BSFA 3,..." is really BSXA...
+;
+;INSTR ARGS      OP   BYTES   RULE   CLASS
+;-------------------------------------------
+BCFA	!,@*   9C8000   3      BA      1
+BCFA	!,*    9C0000   3      BA      1
+BCTA	!,@*   1C8000   3      BA      1
+BCTA	!,*    1C0000   3      BA      1
+BRNA	!,@*   5C8000   3      BA      1
+BRNA	!,*    5C0000   3      BA      1
+BDRA	!,@*   FC8000   3      BA      1
+BDRA	!,*    FC0000   3      BA      1
+BIRA	!,@*   DC8000   3      BA      1
+BIRA	!,*    DC0000   3      BA      1
+BSFA	!,@*   BC8000   3      BA      1
+BSFA	!,*    BC0000   3      BA      1
+BSNA	!,@*   7C8000   3      BA      1
+BSNA	!,*    7C0000   3      BA      1
+BSNR	!,@*   788000   3      BA      1
+BSNR	!,*    780000   3      BA      1
+BSTA	!,@*   3C8000   3      BA      1
+BSTA	!,*    3C0000   3      BA      1
+BSTR	!,@*   388000   3      BA      1
+BSTR	!,*    380000   3      BA      1
+BSXA	@*     BF8000   3      BA      1
+BSXA	*      BF0000   3      BA      1
+BXA	@*     9F8000   3      BA      1
+BXA	*      9F0000   3      BA      1
+
+
+;2650B LDPL AND STPL INSTSTRUCTIONS ...
+;   These two instructions are unique to the 2650B variant. The operand
+; addressing is identical to the branch absolute instuctions, but there's
+; no register/condition code field in this case.
+;
+;INSTR ARGS      OP   BYTES   RULE   CLASS
+;-------------------------------------------
+LDPL    @*     108000   3      BA      2
+LDPL    *      100000   3      BA      2
+STPL    @*     118000   3      BA      2
+STPL    *      110000   3      BA      2
+
+
+;CONDITIONAL RETURN INSTRUCTIONS ...
+;   These instructions all take a condition code alone as the operand.
+;
+;INSTR ARGS     OP  BYTES   RULE   CLASS
+;-------------------------------------------
+RETC	!	14    1	    NOP      1
+RETE	!       34    1	    NOP      1
+
+
+;ABSOLUTE MEMORY REFERENCE INSTRUCTIONS ...
+;   The 2650 has eight memory reference instructions, and each of these comes
+; with 8 distinct addressing modes -
+;
+;	direct (current page)
+;	indirect (pointer is current page, but may point off page)
+;	indexed
+;	indexed indirect (post indexed - indirect first, then indexed)
+;	indexed with auto-decrement
+;	indexed indirect with auto-decrement
+;	indexed with auto-increment
+;	indexed indirect with auto-increment
+;
+;   All but the first two use the register field of the opcode to hold the
+; index register, and R0 is the implied source or destination operand.  Note
+; that these rules expect the "R0," to be explicitly specified even though
+; it's implicit; that seems to be the Signetics standard.
+;
+;   The first two have no indexing and allow any register to be specified.
+;
+;INSTR ARGS           OP   BYTES   RULE   CLASS
+;----------------------------------------------
+ADDA	R0,@*[!]+   8CA000   3      SA      1
+ADDA	R0,@*[!]-   8CC000   3      SA      1
+ADDA	R0,*[!]+    8C2000   3      SA      1
+ADDA	R0,*[!]-    8C4000   3      SA      1
+ADDA	R0,@*[!]    8CE000   3      SA      1
+ADDA	R0,*[!]     8C6000   3      SA      1
+ADDA	!,@*        8C8000   3      SA      1
+ADDA	!,*         8C0000   3      SA      1
+;
+STRA	R0,@*[!]+   CCA000   3      SA      1
+STRA	R0,@*[!]-   CCC000   3      SA      1
+STRA	R0,*[!]+    CC2000   3      SA      1
+STRA	R0,*[!]-    CC4000   3      SA      1
+STRA	R0,@*[!]    CCE000   3      SA      1
+STRA	R0,*[!]     CC6000   3      SA      1
+STRA	!,@*        CC8000   3      SA      1
+STRA	!,*         CC0000   3      SA      1
+;
+LODA	R0,@*[!]+   0CA000   3      SA      1
+LODA	R0,@*[!]-   0CC000   3      SA      1
+LODA	R0,*[!]+    0C2000   3      SA      1
+LODA	R0,*[!]-    0C4000   3      SA      1
+LODA	R0,@*[!]    0CE000   3      SA      1
+LODA	R0,*[!]     0C6000   3      SA      1
+LODA	!,@*        0C8000   3      SA      1
+LODA	!,*         0C0000   3      SA      1
+;
+SUBA	R0,@*[!]+   ACA000   3      SA      1
+SUBA	R0,@*[!]-   ACC000   3      SA      1
+SUBA	R0,*[!]+    AC2000   3      SA      1
+SUBA	R0,*[!]-    AC4000   3      SA      1
+SUBA	R0,@*[!]    ACE000   3      SA      1
+SUBA	R0,*[!]     AC6000   3      SA      1
+SUBA	!,@*        AC8000   3      SA      1
+SUBA	!,*         AC0000   3      SA      1
+;
+ANDA	R0,@*[!]+   4CA000   3      SA      1
+ANDA	R0,@*[!]-   4CC000   3      SA      1
+ANDA	R0,*[!]+    4C2000   3      SA      1
+ANDA	R0,*[!]-    4C4000   3      SA      1
+ANDA	R0,@*[!]    4CE000   3      SA      1
+ANDA	R0,*[!]     4C6000   3      SA      1
+ANDA	!,@*        4C8000   3      SA      1
+ANDA	!,*         4C0000   3      SA      1
+;
+COMA	R0,@*[!]+   ECA000   3      SA      1
+COMA	R0,@*[!]-   ECC000   3      SA      1
+COMA	R0,*[!]+    EC2000   3      SA      1
+COMA	R0,*[!]-    EC4000   3      SA      1
+COMA	R0,@*[!]    ECE000   3      SA      1
+COMA	R0,*[!]     EC6000   3      SA      1
+COMA	!,@*        EC8000   3      SA      1
+COMA	!,*         EC0000   3      SA      1
+;
+EORA	R0,@*[!]+   2CA000   3      SA      1
+EORA	R0,@*[!]-   2CC000   3      SA      1
+EORA	R0,*[!]+    2C2000   3      SA      1
+EORA	R0,*[!]-    2C4000   3      SA      1
+EORA	R0,@*[!]    2CE000   3      SA      1
+EORA	R0,*[!]     2C6000   3      SA      1
+EORA	!,@*        2C8000   3      SA      1
+EORA	!,*         2C0000   3      SA      1
+;
+IORA	R0,@*[!]+   6CA000   3      SA      1
+IORA	R0,@*[!]-   6CC000   3      SA      1
+IORA	R0,*[!]+    6C2000   3      SA      1
+IORA	R0,*[!]-    6C4000   3      SA      1
+IORA	R0,@*[!]    6CE000   3      SA      1
+IORA	R0,*[!]     6C6000   3      SA      1
+IORA	!,@*        6C8000   3      SA      1
+IORA	!,*         6C0000   3      SA      1

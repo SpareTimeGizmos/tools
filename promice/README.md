@@ -7,8 +7,7 @@ attached target device, and more.
 this and more.  I couldn't find a Linux port though, and that inspired me
 to write this one.
 
-
-USAGE:
+## USAGE:
        promice [global options] [command] [local options] [file0] [file1]
      
        Global options applicable to all commands
@@ -26,11 +25,11 @@ USAGE:
          -v          -> verify after downloading
          -s size     -> set size of emulated device
 
-ENVIRONMENT VARIABLES:
-       PROMICE_PORT  -> set the default serial port to use
-       PROMICE_BAUD  -> set the default serial baud rate
+## ENVIRONMENT VARIABLES
+	PROMICE_PORT  -> set the default serial port to use
+	PROMICE_BAUD  -> set the default serial baud rate
 
-NOTES:
+## NOTES
   In the case of a dual, master/slave, PromICE then two file names can be
 specified for download.  The first file is downloaded to unit 0 (that's the
 master unit, or the bottom connector on the back panel) and the second file

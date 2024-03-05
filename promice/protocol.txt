@@ -1,0 +1,150 @@
+INITIAL CONNECTION
+Host:   03 03 03 03 	- autobaud
+	00 00	    	- identify
+	00 04 01 00	- set mode unit 0 -> RUN?
+	00 0F 01 00	- read version unit 0
+	01 04 01 00	- set mode unit 1 -> RUN?
+	01 0F 01 00	- read version unit 1
+	00 04 01 00	- set mode unit 0 -> RUN?
+PromICE:00 02		- number of units
+	00 C4 01 77	- set mode response unit 0 (77 -> 2x 128K units)
+	00 CF 04 35 2E 33 61 - version 5.3a unit 0
+	01 C4 01 07	- set mode response unit 1 (07 -> 128K)
+	01 CF 04 35 2E 33 61 - version 5.3a unit 1
+	00 C4 01 77	- set mode response
+
+SERIAL
+serial#=80000108
+
+DISCONNECT
+Host:    01 24 01 00	- set mode unit 1 no response
+	 01 23 01 00	- restart unit 1 no response
+	 00 24 01 00	- set mode unit 0 no response
+	 00 23 01 00	- restart unit 0 no response
+
+STOP
+Host:	 00 24 01 81	- set mode unit 0 no response, mode=0x81 (FAST, LOAD)
+	 01 24 01 81	- same, unit 1
+
+DOWNLOAD
+Host:	 00 20 03 FF 80 00 - load pointer, unit 0, 0xFF8000 ??!??
+	 00 21 00 00 ...
+	 ... repeated 127 times (32k bytes total)
+	 01 20 03 FF 80 00 - load pointer, unit 1, 0xFF8000
+         01 21 00 00 ...
+	 ... repeated 127 times (32K total)
+PromICE:
+
+
+FILL
+Host:	 00 20 03 FF 80 00 - load pointer, unit 0, 0xFF8000
+	 00 21 00 FF ...   - download 256 bytes of 0xFF
+	 00 20 03 FF 84 00 - load pointer, 0xFF8400 why?
+	 00 21 00 FF ...   - ... download more FFs
+	 00 20 03 FF 88 00 - repeat load pointer every 0x0400 bytes
+	 01 20 03 FF 80 00 - same sequence for unit 1
+	 01 21 00 FF FF ...
+	 01 20 03 FF 84 00
+	 01 21 00 FF FF ...
+
+UPLOAD (d 0:0,7FF)
+Host:	 00 20 03 FF 80 00 - load pointer, unit 0, 0xFF8000
+	 00 02 01 80	   - upload 128 (0x80) bytes
+	 00 02 01 00
+	 00 02 01 00
+	 00 02 01 00
+	 00 20 03 FF 84 00
+	 00 02 01 00
+	 00 02 01 00
+	 00 02 01 00
+	 00 02 01 00
+PromICE: 00 C2 00 FF ... - 256 bytes of data
+ 	 00 C2 00 FF 
+	 00 C2 00 FF 
+	 00 C2 00 FF 
+	 00 C2 00 FF 
+	 00 C2 00 FF 
+	 00 C2 00 FF 
+	 00 C2 00 FF 
+
+UPLOAD (d 1:0,7FF)
+Host:	 01 20 03 FF 80 00
+	 01 02 01 00
+	 01 02 01 00
+	 01 02 01 00
+	 01 02 01 00
+	 01 20 03 FF 84 00
+	 01 02 01 00
+	 01 02 01 00
+	 01 02 01 00
+	 01 02 01 00
+PromICE: 01 C2 00 FF ...
+	 01 C2 00 FF ...
+	 01 C2 00 FF ...
+	 01 C2 00 FF ...
+	 01 C2 00 FF ...
+	 01 C2 00 FF ...
+	 01 C2 00 FF ...
+	 01 C2 00 FF ...
+
+GO
+Host:	 00 24 01 00
+	 01 24 01 00
+
+
+STOP
+Host:	 00 24 01 01
+ 	 01 24 01 01
+
+RESET
+Host:	 00 06 01 37	- reset unit 0, length=55*8.9ms=489.5ms
+PromICE: 00 C6 01 00
+
+
+================================================================================
+EXPERIMENTS WITH THE 1MB SINGLE UNIT
+================================================================================
+
+INITIAL CONNECTION
+Host:	 03 03 03 03	- autobaud
+	 00 00		- identify
+	 00 04 01 00	- set mode unit 0 RUN
+	 00 0F 01 00	- read version unit 0
+	 00 04 01 00	- set mode unit 0 RUN
+PromICE: 03		- autobaud
+	 00 01		- 1 unit
+	 00 84 01 0A	- size 1Mb
+	 00 8F 05 38 2E 32 43 00 - version 8.2C
+	 00 84 01 0A	- size 1Mb
+
+DISCONNECT
+Host:	 00 24 01 00	- set mode unit 0 no response
+	 00 23 01 00	- restart unit 0 no response
+
+STOP
+Host:	 00 24 01 01	- set mode unit 0 no response, mode=1 (LOAD, no FAST?)
+
+DOWNLOAD
+Host:	 00 20 03 FF 80 00 - load address unit 0 0xFF8000
+	 00 21 00 00 ...   - 256 bytes of data
+	 ... repeats ...
+	 00 20 03 FF 84 00 - load address ...
+	 00 21 00 00 ...   - more data
+	 ... repeats ...
+
+LIGHT
+Host:	00 24 02 21 01
+
+HSO 0
+Host:	00 EB 01 00
+
+HSO 1
+Host:	00 EB 01 08
+
+SERIAL
+Host:	 00 1F 01 00
+PromICE: 00 8F 05 02 03 04 05 00 - displays as "serial#=02030405"
+
+STATUS
+Host:	 00 0F 01 00	- request version number
+PromICE: 00 8F 05 38 2E 32 43 00 - last byte is status???

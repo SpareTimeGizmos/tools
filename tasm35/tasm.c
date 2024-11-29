@@ -261,6 +261,9 @@
  * 
  *      02/27/24 version 3.5 Robert Armstrong <bob@jfcl.com>
  *                              add .SBTTL and table of contents printout
+ * 
+ *      11/29/24             Robert Armstorng <bob@jfcl.com>
+ *                              change CLK_TCK to CLOCKS_PER_SEC
  *
  *  Invoked as:
  *
@@ -892,7 +895,7 @@ tasm(int argc,char *margv[])
 
     if(time_flag)
     {
-        const clock_t ticksPerSec=(clock_t)CLK_TCK;
+        const clock_t ticksPerSec=(clock_t)CLOCKS_PER_SEC;  // [RLA]
         clock_t et_ticks;
         clock_t et_secs;
         clock_t et_hunds;

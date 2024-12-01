@@ -53,6 +53,7 @@
 // 10-Feb-00    RLA             New file.
 // 31-Jan-09    RLA		Adapted for the PDP-11
 // 16-Mar-21    RLA             Update for the SBCT11 v2
+// 30-NOV-24	RLA		Fixes to compile on Linux
 //--
 //000000001111111111222222222233333333334444444444555555555566666666667777777777
 //234567890123456789012345678901234567890123456789012345678901234567890123456789
@@ -600,7 +601,7 @@ void DumpMemory ()
   for (uint32_t wAddress = 0;  wAddress < PDPMEMSIZE;  wAddress += 16) {
     printf("%06o/ ", wAddress);
     for (uint32_t i = 0; i < 16; i += 2) {
-      uint16_t w = GETWORD(wAddress+i);
+      uint16_t w = GETWORD((wAddress+i));
       printf(" %06o", w);
     }
     printf("  ");

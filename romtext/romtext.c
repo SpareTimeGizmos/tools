@@ -24,29 +24,32 @@
 // ingore comments in the source file.
 //
 // USAGE:
-//  romtext [-annnn] input-file output-file ...
+//  romtext [-annnn] [-m] input-file output-file ...
 //
 //	     -annnn - set the address of the output image
+//           -m     - output as MACRO-11 source code
 //
 // REVISION HISTORY
 // 22-Feb-06	RLA	New file...
 // 21-Mar-23    RLA     When reading DOS text files on Linux, they already
 //                        end with \r\n - don't add another <CR>!
+// 12-AUG-25    RLA     Add MACRO-11 option
 //--
 #include <stdio.h>		// printf(), scanf(), et al.
 #include <stdlib.h>		// exit(), ...
-#include <stdint.h>             
+#include <stdint.h>             // uint16_t, uint8_t, etc ...
+#include <stdbool.h>            // bool, true, false
 #include <malloc.h>		// malloc(), _fmalloc(), etc...
 #include <memory.h>		// memset(), etc...
-#include <string.h>
+#include <string.h>             // strcat(), strcpy(), etc
+#include <ctype.h>              // isprint(), etc
 
 #define ROMSIZE	((unsigned) 65535)	// largest file we can convert!
 #define MAXLINE 512			// longest line possible
 
-typedef unsigned char uchar;
-
 // Globals...
 uint16_t uROMAddress;		// offset of the EPROM in memory
+bool     fMacroOutput;          // true to output MACRO-11
 
 
 
@@ -90,6 +93,40 @@ void WriteHex (
 
 
 //++
+//    This function writes the help data to the output as a MACRO-11 source
+// file using a series of .ASCII statements.  It handles escaping special
+// control characters (like <TAB> and <CRLF>)...
+//--
+void WriteMacro(
+  FILE      *fOutput,	        // handle of the .HEX file to be written
+  uint8_t   *pbData,		// array of bytes to be saved
+  uint32_t   cbData)		// number of bytes to write
+{
+  bool fNewLine = true;  bool fLastPrint = false;
+  fprintf(fOutput, "\t.NLIST\n\n");
+
+  while (cbData > 0) {
+    uint8_t ch = (*pbData++) & 0177;  --cbData;
+    if (ch == 0) break;
+    if (fNewLine) {fprintf(fOutput, "\t.ASCII\t");  fNewLine=false;}
+    if (isprint(ch) && (ch != '/')) {
+      if (!fLastPrint) fputc('/', fOutput);
+      fputc(ch, fOutput);  fLastPrint = true;
+    } else if (ch != 0) {
+      if (fLastPrint) fputc('/', fOutput);
+      fprintf(fOutput, "<%o>", ch);  fLastPrint = false;
+    }
+    if (ch == 012) {fprintf(fOutput, "\n");  fNewLine = true;}
+  }
+
+  fprintf(fOutput, "\n");
+  fprintf(fOutput, "\t.BYTE\t0\n");
+  fprintf(fOutput, "\t.EVEN\n");
+  fprintf(fOutput, "\t.LIST\n");
+}
+
+
+//++
 //   This function parses the command line and initializes all the global
 // variables accordingly.  It's tedious, but fairly brainless work.  Note
 // that NO file names are required - if none are supplied, stdin and stdout
@@ -100,13 +137,14 @@ int ParseOptions (int argc, char *argv[])
   int nArg;  char *psz;
 
   // First, set all the defaults...
-  uROMAddress = 0;
+  uROMAddress = 0;  fMacroOutput = false;
 
   // If there are no arguments, then just print the help and exit...
   if (argc == 1) {
     fprintf(stderr, "Usage:\n");
-    fprintf(stderr,"romtext [-annnn] [input-file] [output-file]\n");
+    fprintf(stderr,"romtext [-annnn] [-m] [input-file] [output-file]\n");
     fprintf(stderr,"\t-annnn - set the address of the ROM image\n");
+    fprintf(stderr, "\t-m     - output as MACRO-11 source code\n");
     exit(EXIT_SUCCESS);
   }
 
@@ -115,7 +153,9 @@ int ParseOptions (int argc, char *argv[])
     if (argv[nArg][0] != '-') return nArg;
 
     // Handle the -a (address) option...
-    if (strncmp(argv[nArg], "-a", 2) == 0) {
+    if (strcmp(argv[nArg], "-m") == 0) {
+      fMacroOutput = true;  continue;
+    } else if (strncmp(argv[nArg], "-a", 2) == 0) {
       uROMAddress = (unsigned) strtoul(argv[nArg]+2, &psz, 10);
       if ((*psz == 'x') && (uROMAddress == 0))
         uROMAddress = (unsigned) strtoul(psz+1, &psz, 16);
@@ -173,7 +213,7 @@ int main (int argc, char *argv[])
   //fprintf(stderr,"Start Address = %u (0x%04x)\n", uROMAddress, uROMAddress);
   
   //   If either the input file, the output file, or both is absent then
-  // they default to stdin and stdout.  If only one is present, then its
+  // they default to stdin and stdout.  If only one is present, then it's
   // the input file...
   if (nArg <argc) {
     //fprintf(stderr,"Input file = %s\n", argv[nArg]);
@@ -212,13 +252,18 @@ int main (int argc, char *argv[])
   memset(pbData, 0xFF, (size_t) ROMSIZE);
 
   // Load the input file...
-  //..
   uTextSize = ReadText(fInput, pbData, ROMSIZE);
 
   // Dump out the ROM image and we're all done...
-  WriteHex(fOutput, pbData, uTextSize, uROMAddress);
-  printf("%s: %u bytes from 0x%04X to 0x%04X\n",
-    pszInput, uTextSize, uROMAddress, uROMAddress+uTextSize-1);
+  if (fMacroOutput) {
+    WriteMacro(fOutput, pbData, uTextSize);
+    printf("%s: %u bytes\n", pszInput, uTextSize);
+  } else {
+    WriteHex(fOutput, pbData, uTextSize, uROMAddress);
+    printf("%s: %u bytes from 0x%04X to 0x%04X\n",
+      pszInput, uTextSize, uROMAddress, uROMAddress+uTextSize-1);
+  }
 
+  // All done ...
   exit(0);  
 }
